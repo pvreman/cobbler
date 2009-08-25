@@ -38,11 +38,11 @@
       {% for item in results %}
       <tr class="{% cycle 'rowodd' 'roweven' %}">
         <td>{{ item.time|safe }}</td>
-        <td>{{ item.task_id|safe }}</td>
-        <td>{{ item.task_name|safe }}</td>
+        <td><a href="/cobbler_web/events/task_id/{{ item.task_id|safe }}">{{ item.task_id|safe }}</a></td>
+        <td><a href="/cobbler_web/events/task_name/{{ item.task_name|safe }}">{{ item.task_name|safe }}</a></td>
         <td>{{ item.event|safe }}</td>
-        <td>{{ item.system|safe }}</td>
-        <td>{{ item.user|safe }}</td>
+        <td><a href="/cobbler_web/events/system/{{ item.system|safe }}">{{ item.system|safe }}</a></td>
+        <td><a href="/cobbler_web/events/user/{{ item.user|safe }}">{{ item.user|safe }}</a></td>
         <td>{{ item.message|safe }}</td>
         {% ifequal hasdetailed 1 %}
         <td><a href="/cobbler_web/eventlog/{{ item.task_id }}">log</a></td>
