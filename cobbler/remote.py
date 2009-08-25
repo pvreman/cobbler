@@ -47,6 +47,7 @@ import item_system
 import item_repo
 import item_image
 import clogger
+import tasks
 import utils
 #from utils import * # BAD!
 from utils import _
@@ -55,15 +56,7 @@ import sub_process
 
 # FIXME: make configurable?
 TOKEN_TIMEOUT = 60*60 # 60 minutes
-EVENT_TIMEOUT = 7*24*60*60 # 1 week
 CACHE_TIMEOUT = 10*60 # 10 minutes
-
-# task codes
-EVENT_RUNNING   = "running"
-EVENT_COMPLETE  = "complete"
-EVENT_FAILED    = "failed"
-# normal events
-EVENT_INFO      = "notification"
 
 # for backwards compatibility with 1.6 and prev XMLRPC
 # do not remove!
@@ -74,9 +67,10 @@ REMAP_COMPAT = {
 }
 
 class CobblerThread(Thread):
-    def __init__(self,event_id,remote,logatron,options):
+    def __init__(self,task_id,name,remote,logatron,options):
         Thread.__init__(self)
-        self.event_id        = event_id
+        self.task_id        = task_id
+        self.name            = name
         self.remote          = remote
         self.logger          = logatron
         if options is None:
@@ -87,15 +81,19 @@ class CobblerThread(Thread):
         pass
 
     def run(self):
+        self.remote.tasks.event_start(self.task_id,self.name)
+        logfilemsg="See task log file %s for details" % self.remote.tasks.get_detailed_logfile(self.task_id)
         time.sleep(1)
         try:
             rc = self._run(self)
-            self.remote._set_task_state(self,self.event_id,EVENT_COMPLETE)
+            self.logger.info("### TASK COMPLETE ###")
+            self.remote.tasks.event_complete(self.task_id,logfilemsg)
             self.on_done()
             return rc
         except:
             utils.log_exc(self.logger)
-            self.remote._set_task_state(self,self.event_id,EVENT_FAILED)
+            self.logger.error("### TASK FAILED ###")
+            self.remote.tasks.event_failed(self.task_id,logfilemsg)
             return False  
  
 # *********************************************************************
@@ -116,10 +114,10 @@ class CobblerXMLRPCInterface:
         """
         self.api = api
         self.logger = self.api.logger
+        self.tasks = self.api.tasks
         self.token_cache = {}
         self.object_cache = {}
         self.timestamp = self.api.last_modified_time()
-        self.events = {}
         self.shared_secret = utils.get_shared_secret()
         random.seed(time.time())
         self.translator = utils.Translator(keep=string.printable)
@@ -154,7 +152,7 @@ class CobblerXMLRPCInterface:
         def on_done(self):
             if self.options.get("iso","") == "/var/www/cobbler/pub/generated.iso":
                 msg = "ISO now available for <A HREF=\"/cobbler/pub/generated.iso\">download</A>"
-                self.remote._new_event(msg)
+                self.remote.tasks.event_info(self.task_id,msg)
         return self.__start_task(runner, token, "buildiso", "Build Iso", options, on_done)
 
     def background_aclsetup(self, options, token):
@@ -242,58 +240,6 @@ class CobblerXMLRPCInterface:
         self.check_access(token, "power")
         return self.__start_task(runner, token, "power", "Power management (%s)" % options.get("power",""), options)
 
-    def get_events(self, for_user=""):
-        """
-        Returns a hash(key=event id) = [ statetime, name, state, [read_by_who] ]
-        If for_user is set to a string, it will only return events the user
-        has not seen yet.  If left unset, it will return /all/ events.
-        """
-
-        # return only the events the user has not seen
-        self.events_filtered = {}
-        for (k,x) in self.events.iteritems():
-           if for_user in x[3]:
-              pass
-           else:
-              self.events_filtered[k] = x
-
-        # mark as read so user will not get events again
-        if for_user is not None and for_user != "":
-           for (k,x) in self.events.iteritems():
-               if for_user in x[3]:
-                  pass
-               else:
-                  self.events[k][3].append(for_user)
-
-        return self.events_filtered
-
-    def get_event_log(self,event_id):
-        """
-        Returns the contents of a task log.
-        Events that are not task-based do not have logs.
-        """
-        event_id = str(event_id).replace("..","").replace("/","")
-        path = "/var/log/cobbler/tasks/%s.log" % event_id
-        self._log("getting log for %s" % event_id)
-        if os.path.exists(path):
-           fh = open(path, "r")
-           data = str(fh.read())
-           data = self.translator(data)
-           fh.close()
-           return data
-        else:
-           return "?"
-
-    def __generate_event_id(self,optype):
-        t = time.time()
-        (year, month, day, hour, minute, second, weekday, julian, dst) = time.localtime()
-        return "%04d-%02d-%02d_%02d%02d%02d_%s" % (year,month,day,hour,minute,second,optype)
-
-    def _new_event(self, name):
-        event_id = self.__generate_event_id("event")
-        event_id = str(event_id)
-        self.events[event_id] = [ float(time.time()), str(name), EVENT_INFO, [] ]
-
     def __start_task(self, thr_obj_fn, token, role_name, name, args, on_done=None):
         """
         Starts a new background task.
@@ -306,37 +252,14 @@ class CobblerXMLRPCInterface:
         Returns a task id.
         """
         self.check_access(token, role_name)
-        event_id = self.__generate_event_id(role_name) # use short form for logfile suffix
-        event_id = str(event_id)
-        self.events[event_id] = [ float(time.time()), str(name), EVENT_RUNNING, [] ]
-        
-        self._log("start_task(%s); event_id(%s)"%(name,event_id))
-        logatron = clogger.Logger("/var/log/cobbler/tasks/%s.log" % event_id)
-
-        thr_obj = CobblerThread(event_id,self,logatron,args)
+        task_id = self.tasks.new_task(role_name,user=self.get_user_from_token(token))
+        logatron = clogger.Logger(self.tasks.get_detailed_logfile(task_id))
+        thr_obj = CobblerThread(task_id,name,self,logatron,args)
         thr_obj._run = thr_obj_fn
         if on_done is not None:
            thr_obj.on_done = on_done
         thr_obj.start()
-        return event_id
-
-    def _set_task_state(self,thread_obj,event_id,new_state):
-        event_id = str(event_id)
-        if self.events.has_key(event_id):
-            self.events[event_id][2] = new_state
-            self.events[event_id][3] = [] # clear the list of who has read it
-        if thread_obj is not None:
-            if new_state == EVENT_COMPLETE: 
-                thread_obj.logger.info("### TASK COMPLETE ###")
-            if new_state == EVENT_FAILED: 
-                thread_obj.logger.error("### TASK FAILED ###")
-
-    def get_task_status(self, event_id):
-        event_id = str(event_id)
-        if self.events.has_key(event_id):
-            return self.events[event_id]
-        else:
-            raise CX("no event with that id")
+        return task_id
 
     def __sorter(self,a,b):
         """
@@ -1443,10 +1366,10 @@ class CobblerXMLRPCInterface:
             (tokentime, entry) = self.object_cache[oid]
             if (timenow > tokentime + CACHE_TIMEOUT):
                 del self.object_cache[oid]
-        for tid in self.events.keys():
-            (eventtime, name, status, who) = self.events[tid]
-            if (timenow > eventtime + EVENT_TIMEOUT):
-                del self.events[tid]
+        #for tid in self.events.keys():
+        #    (eventtime, name, status, who) = self.events[tid]
+        #    if (timenow > eventtime + EVENT_TIMEOUT):
+        #        del self.events[tid]
             # logfile cleanup should be dealt w/ by logrotate
 
     def __validate_user(self,input_user,input_password):

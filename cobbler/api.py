@@ -44,7 +44,7 @@ import module_loader
 import kickgen
 import yumgen
 import pxegen
-import eventlog
+import tasks
 from utils import _
 
 import logging
@@ -128,7 +128,7 @@ class BootAPI:
                 "authz_allowall"
             )
         
-            self.eventlog = eventlog.EventLog(self._config)
+            self.tasks = tasks.Tasks(self._config)
 
             # FIXME: pass more loggers around, and also see that those
             # using things via tasks construct their own kickgen/yumgen/

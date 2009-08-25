@@ -79,7 +79,7 @@ class Tasks:
         self.events.append(event)
                     
     def _log(self,task_id,task_event,message):
-        active_task=get_active_task(task_id)
+        active_task=self.get_active_task(task_id)
         (year, month, day, hour, minute, second, weekday, julian, dst) = time.localtime()
         event={}
         event["time"]="%04d-%02d-%02d %02d:%02d:%02d" % (year,month,day,hour,minute,second)
@@ -124,7 +124,7 @@ class Tasks:
         self.active_tasks[task_id]=active_task
         return task_id
 
-    def get_active_task(task_id)
+    def get_active_task(self,task_id):
         active_task=self.active_tasks.get(task_id,None)
         if active_task is None:
             raise CX("task id %s is not active" % task_id)
@@ -177,7 +177,7 @@ class Tasks:
             self.events_filtered.append(event)
         return self.events_filtered
 
-    def find_tasks(self,only_active=False,task_id=None,user=None,system=None)):
+    def find_tasks(self,only_active=False,task_id=None,user=None,system=None):
         """
         Returns a list of hashes with the tasks matching the criteria.
         Only_active checks also if the task is in the active_task list and 
