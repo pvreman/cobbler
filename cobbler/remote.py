@@ -261,6 +261,18 @@ class CobblerXMLRPCInterface:
         thr_obj.start()
         return task_id
 
+    def get_active_task(self, task_id):
+        return self.tasks.get_active_task(task_id)
+
+    def get_detailed_logfile(self, task_id):
+        return self.tasks.get_detailed_logfile(task_id)
+
+    def find_events(self,only_active=False,task_id=None,user=None,system=None):
+        return self.tasks.find_events(only_active,task_id,user,system)
+
+    def find_tasks(self,only_active=False,task_id=None,user=None,system=None):
+        return self.tasks.find_tasks(only_active,task_id,user,system)
+
     def __sorter(self,a,b):
         """
         Helper function to sort two datastructure representations of

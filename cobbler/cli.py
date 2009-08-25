@@ -436,15 +436,12 @@ class BootCLI:
 
 
     def print_task(self, task_id):
-        print "task started: %s" % task_id
-        events = self.remote.get_events()
-        (etime, name, status, who_viewed) = events[task_id]
-        atime = time.asctime(time.localtime(etime))
-        print "task started (id=%s, time=%s)" % (name, atime)
+        active_task = self.remote.get_active_task(task_id)
+        print "task started (id=%s, name=%s, time=%s)" % (task_id,active_task["name"],active_task["start_time"])
 
     
     def follow_task(self, task_id):
-        logfile = "/var/log/cobbler/tasks/%s.log" % task_id
+        logfile = self.remote.get_detailed_logfile(task_id)
         # adapted from:  http://code.activestate.com/recipes/157035/        
         file = open(logfile,'r')
         #Find the size of the file and move to the end

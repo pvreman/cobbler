@@ -39,6 +39,9 @@ EVENT_COMPLETE = "complete"
 EVENT_FAILED   = "failed"
 EVENT_INFO     = "info"
 
+TIME_FMT    = "%Y-%m-%d %H:%M:%S"
+TASK_ID_FMT = "%Y%m%d_%H%M%S"
+
 class Tasks:
     """
     Handles the reading and writing of tasks
@@ -80,9 +83,8 @@ class Tasks:
                     
     def _log(self,task_id,task_event,message):
         active_task=self.get_active_task(task_id)
-        (year, month, day, hour, minute, second, weekday, julian, dst) = time.localtime()
         event={}
-        event["time"]="%04d-%02d-%02d %02d:%02d:%02d" % (year,month,day,hour,minute,second)
+        event["time"]=time.strftime(TIME_FMT)
         event["task_id"]=task_id
         event["task_name"]=active_task["name"]
         event["event"]=task_event
@@ -98,12 +100,12 @@ class Tasks:
     def event_complete(self,task_id,message):
         self._log(task_id,EVENT_COMPLETE,message)
         if self.active_tasks.has_key(task_id):
-            self.active_tasks[task_id]["end_time"]=time.localtime()
+            self.active_tasks[task_id]["end_time"]=time.strftime(TIME_FMT)
 
     def event_failed(self,task_id,message):
         self._log(task_id,EVENT_FAILED,message)
         if self.active_tasks.has_key(task_id):
-            self.active_tasks[task_id]["end_time"]=time.localtime()
+            self.active_tasks[task_id]["end_time"]=time.strftime(TIME_FMT)
 
     def event_info(self,task_id,message):
         self._log(task_id,EVENT_INFO,message)
@@ -111,8 +113,7 @@ class Tasks:
     def new_task(self,name,system="",user=""):
         # Generate ID, based on the current time
         # FIXME this is not unique for tasks within the same second
-        (year, month, day, hour, minute, second, weekday, julian, dst) = time.localtime()
-        task_id="%04d%02d%02d_%02d%02d%02d" % (year,month,day,hour,minute,second)
+        task_id=time.strftime(TASK_ID_FMT)
 
         # Register in active tasks
         self.logger.debug("adding task_id %s to active tasks" % task_id)
@@ -120,7 +121,7 @@ class Tasks:
         active_task["name"]=name
         active_task["system"]=system
         active_task["user"]=user
-        active_task["start_time"]=time.localtime()
+        active_task["start_time"]=time.strftime(TIME_FMT)
         self.active_tasks[task_id]=active_task
         return task_id
 
