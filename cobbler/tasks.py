@@ -28,10 +28,13 @@ from utils import _
 import time
 import codes
 import csv
+import os
+import string
 
 # Event CSV definiation
 EVENT_CSVFILE = "/var/log/cobbler/events.csv"
-EVENT_FIELDS = ["time","task_id","task_name","event","system","user","message"]
+EVENT_FIELDS  = ["time","task_id","task_name","event","system","user","message"]
+TASK_FIELDS   = ["task_id","name","system","user","start_time","end_time"]
 
 # Event status
 EVENT_START    = "start"
@@ -54,6 +57,7 @@ class Tasks:
         self.config       = config
         self.api          = config.api
         self.logger       = self.api.logger
+        self.translator   = utils.Translator(keep=string.printable)
         self.events       = []
         self.active_tasks = {}
         self._read_old_events()
@@ -63,14 +67,12 @@ class Tasks:
         Read old events in a list
         """
         self.events = []
-        try:
-            inf = file(task_CSVFILE,"rb")
+        if os.path.exists(EVENT_CSVFILE):
+            inf = file(EVENT_CSVFILE,"rb")
             rd = csv.DictReader( inf, EVENT_FIELDS )
-            logger.debug("loading old task events from %s" % EVENT_CSVFILE)
+            self.logger.debug("loading old task events from %s" % EVENT_CSVFILE)
             for event in rd:
                 self.events.append(event)
-        except:
-            pass
 
     def _write_event(self,event):
         """
@@ -118,6 +120,7 @@ class Tasks:
         # Register in active tasks
         self.logger.debug("adding task_id %s to active tasks" % task_id)
         active_task={}
+        active_task["task_id"]=task_id
         active_task["name"]=name
         active_task["system"]=system
         active_task["user"]=user
@@ -155,48 +158,54 @@ class Tasks:
         else:
             return "?"
 
-    def find_events(self,only_active=False,task_id=None,user=None,system=None):
+    def find_events(self,recent=False,running=False,criteria={}):
         """
-        Returns a list of hashes with the events matching the criteria.
-        Only_active checks also if the task is in the active_task list and 
-        that the end_time is not yet known
+        Returns a list of hashes with the tasks matching the criteria.
+        Recent checks also if the task is still in the active_task list
+        Running checks also that the end_time is not yet known
         """
+        if running:
+            recent=True
         self.events_filtered = []
         for event in self.events:
-            if system is not None and event["system"] != system:
+            skip=False
+            for (key,value) in criteria.iteritems():
+                if event.get(key,"")!=value:
+                    skip=True
+                    break
+            if skip:
                 continue
-            if user is not None and event["user"] != user:
-                continue
-            if task_id is not None and event["task_id"] != task_id:
-                continue
-            if only_active:
-                active_task=self.active_task.get(event["task_id"],None)
+            if recent:
+                active_task=self.active_tasks.get(event["task_id"],None)
                 if active_task is None:
                     continue
-                if active_task.has_key("end_time"):
+                if running and not active_task.has_key("end_time"):
                     continue
             self.events_filtered.append(event)
         return self.events_filtered
 
-    def find_tasks(self,only_active=False,task_id=None,user=None,system=None):
+    def find_tasks(self,recent=False,running=False,criteria={}):
         """
         Returns a list of hashes with the tasks matching the criteria.
-        Only_active checks also if the task is in the active_task list and 
-        that the end_time is not yet known
+        Recent checks also if the task is still in the active_task list
+        Running checks also that the end_time is not yet known
         """
+        if running:
+            recent=True
         self.tasks_filtered = []
         for task in self.active_tasks.iteritems():
-            if system is not None and task["system"] != system:
+            skip=False
+            for (key,value) in criteria.iteritems():
+                if task.get(key,"")!=value:
+                    skip=True
+                    break
+            if skip:
                 continue
-            if user is not None and task["user"] != user:
-                continue
-            if task_id is not None and task["task_id"] != task_id:
-                continue
-            if only_active:
-                active_task=self.active_task.get(task["task_id"],None)
+            if recent:
+                active_task=self.active_tasks.get(task["task_id"],None)
                 if active_task is None:
                     continue
-                if active_task.has_key("end_time"):
+                if running and not active_task.has_key("end_time"):
                     continue
             self.tasks_filtered.append(task)
         return self.tasks_filtered

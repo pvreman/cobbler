@@ -677,25 +677,26 @@ def settings(request):
 
 # ======================================================================
 
-def events(request):
+def events(request,recent=False,running=False,key=None,value=None):
    """
    This page presents a list of all the events and links to the event log viewer.
    """
-   events = remote.get_events()
+   criteria={}
+   if key is None:
+      value=None
+   if key is not None:
+      criteria[key]=value
+   events = remote.find_events(recent,running,criteria)
  
-   events2 = []
-   for id in events.keys():
-      (ttime, name, state, read_by) = events[id]
-      events2.append([id,time.asctime(time.gmtime(ttime)),name,state])
-
-   def sorter(a,b):
-      return cmp(a[2],b[2])
-   events2.sort(sorter)
-
    t = get_template('events.tmpl')
    html = t.render(Context({
-       'results'  : events2,
-       'username' : username
+       'results'        : events,
+       'recent'         : recent,
+       'running'        : running,
+       'hasdetailed'    : recent or running,
+       'filter_key'     : key,
+       'filter_value'   : value,
+       'username'       : username
    }))
    return HttpResponse(html)
 
@@ -705,24 +706,19 @@ def eventlog(request, event=0):
    """
    Shows the log for a given event.
    """
-   event_info = remote.get_events()
-   if not event_info.has_key(event):
-      return HttpResponse("event not found")
-
-   data       = event_info[event]
-   eventname  = data[0]
-   eventtime  = data[1]
-   eventstate = data[2]
-   eventlog   = remote.get_event_log(event)
+   try:
+      task_info = remote.get_active_task(event)
+   except:
+      return HttpResponse("task not found")
 
    t = get_template('eventlog.tmpl')
    vars = {
-      'eventlog'   : eventlog,
-      'eventname'  : eventname,
-      'eventstate' : eventstate,
+      'eventlog'   : remote.get_detailed_log(event),
+      'eventname'  : task_info["name"],
       'eventid'    : event,
-      'eventtime'  : eventtime,
-      'username'  : username
+      'starttime'  : task_info["start_time"],
+      'endtime'    : task_info.get("end_time","RUNNING"),
+      'username'   : username
    }
    html = t.render(Context(vars))
    return HttpResponse(html)

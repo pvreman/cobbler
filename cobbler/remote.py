@@ -267,11 +267,14 @@ class CobblerXMLRPCInterface:
     def get_detailed_logfile(self, task_id):
         return self.tasks.get_detailed_logfile(task_id)
 
-    def find_events(self,only_active=False,task_id=None,user=None,system=None):
-        return self.tasks.find_events(only_active,task_id,user,system)
+    def get_detailed_log(self, task_id):
+        return self.tasks.get_detailed_log(task_id)
 
-    def find_tasks(self,only_active=False,task_id=None,user=None,system=None):
-        return self.tasks.find_tasks(only_active,task_id,user,system)
+    def find_events(self,recent=False,running=False,criteria={}):
+        return self.tasks.find_events(recent,running,criteria)
+
+    def find_tasks(self,recent=False,running=False,criteria={}):
+        return self.tasks.find_tasks(recent,running,criteria)
 
     def __sorter(self,a,b):
         """

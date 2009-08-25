@@ -1,7 +1,7 @@
 {% extends 'master.tmpl' %}
 {% block content %}
 
-<div class="section_caption">Event {{ eventid }} : {{ eventname }} :: {{ eventstate }}</div>
+<div class="section_caption">Event {{ eventid }} : {{ eventname }} :: {{ starttime }} - {{ endtime }}</div>
 <textarea rows="40" cols="120" name="eventlog" id="eventlog">
 {{ eventlog }}
 </textarea>

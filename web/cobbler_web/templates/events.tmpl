@@ -2,28 +2,54 @@
 
 {% block content %}
 
-{% if results %}
+
 <fieldset>
-  <legend>Events</legend>
-  <table width="60%" cellpadding="2" cellspacing="0" border="0">
+  <legend id="clicky" class="cursor">&raquo; 
+    {% ifequal recent 1 %}
+    Recent
+    {% endifequal %}
+    {% ifequal running 1 %}
+    Running
+    {% endifequal %}
+    Events
+    {% if filter_key %}
+    for {{ filter_key|title }} {{ filter_value }}
+    {% endif %}
+  </legend>
+  <hr />
+  <ul id="action" class="list menubar">
+    <li class="list clear"><a href="/cobbler_web/events/running">List only Running tasks</a></li>
+    <li class="list clear"><a href="/cobbler_web/events/recent">List only Recent tasks</a></li>
+    <li class="list clear"><a href="/cobbler_web/events">List All Events</a></li>
+  </ul>
+  <table width="100%" cellpadding="2" cellspacing="0" border="0">
       <tr class="bgheader">
-        <td class="theader">Start Time</td>
-        <td class="theader">Name</td>
-        <td class="theader">State</td>
+        <td class="theader">Time</td>
+        <td class="theader">Task Id</td>
+        <td class="theader">Task Name</td>
+        <td class="theader">Event</td>
+        <td class="theader">System</td>
+        <td class="theader">User</td>
+        <td class="theader">Message</td>
+        {% ifequal hasdetailed 1 %}
         <td class="theader">Log</td>
+        {% endifequal %}
       </tr>
-      {% for line in results %}
+      {% for item in results %}
       <tr class="{% cycle 'rowodd' 'roweven' %}">
-        <td>{{ line.1|safe }}</td>
-        <td>{{ line.2|safe }}</td>
-        <td>{{ line.3|safe }}</td>
-        <td><a href="/cobbler_web/eventlog/{{ line.0 }}">log</a></td>
+        <td>{{ item.time|safe }}</td>
+        <td>{{ item.task_id|safe }}</td>
+        <td>{{ item.task_name|safe }}</td>
+        <td>{{ item.event|safe }}</td>
+        <td>{{ item.system|safe }}</td>
+        <td>{{ item.user|safe }}</td>
+        <td>{{ item.message|safe }}</td>
+        {% ifequal hasdetailed 1 %}
+        <td><a href="/cobbler_web/eventlog/{{ item.task_id }}">log</a></td>
+        {% endifequal %}
       </tr>
       {% endfor %}
   </table>
 </fieldset>
-{% else %}
-<h3>No events</h3>
-{% endif %}
 
 {% endblock %}
