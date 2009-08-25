@@ -179,7 +179,7 @@ class Tasks:
                 active_task=self.active_tasks.get(event["task_id"],None)
                 if active_task is None:
                     continue
-                if running and not active_task.has_key("end_time"):
+                if running and active_task.has_key("end_time"):
                     continue
             self.events_filtered.append(event)
         return self.events_filtered
@@ -205,7 +205,7 @@ class Tasks:
                 active_task=self.active_tasks.get(task["task_id"],None)
                 if active_task is None:
                     continue
-                if running and not active_task.has_key("end_time"):
+                if running and active_task.has_key("end_time"):
                     continue
             self.tasks_filtered.append(task)
         return self.tasks_filtered
