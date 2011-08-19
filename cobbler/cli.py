@@ -296,6 +296,9 @@ class BootCLI:
             for x in keys:
                print "%s : %s" % (x, data[x])
         elif object_action in [ "poweron", "poweroff", "powerstatus", "reboot" ]:
+            if opt(options, "name") == "":
+                print "--name is required"
+                sys.exit(1)
             power={}
             power["power"] = object_action.replace("power","")
             power["systems"] = [options.name]
